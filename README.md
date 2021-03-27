@@ -1,5 +1,11 @@
 # An Opinionated Introduction to Node.js
-
+- [An Opinionated Introduction to Node.js](#an-opinionated-introduction-to-nodejs)
+  - [Background](#background)
+  - [What is Node?](#what-is-node)
+  - [Why JavaScript?](#why-javascript)
+  - [JavaScript, and therefore Node, is single-threaded](#javascript-and-therefore-node-is-single-threaded)
+  - [However, JavaScript, and therefore Node, is asynchronous](#however-javascript-and-therefore-node-is-asynchronous)
+  - [Let's see this in action](#lets-see-this-in-action)
 ## Background
 This is the backend analogue of my [Frontend Intro](https://github.com/fasiha/frontend-intro#readme). Perhaps more than a lot of ecosystems, Node.js has a lot of cultural practices that I try to point out to others as I pair-program with them. So in this document I hope to fill in the gaps that tutorials, documentation, and Stack Overflow might leave. This may mean this document is very dense—I welcome your [feedback](https://fasiha.github.io/#contact).
 
