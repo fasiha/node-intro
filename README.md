@@ -12,6 +12,7 @@
   - [Creating your own Promise: rare but useful](#creating-your-own-promise-rare-but-useful)
   - [Modules and require](#modules-and-require)
   - [let and const](#let-and-const)
+  - [npm and npx](#npm-and-npx)
   - [The Express.js web server](#the-expressjs-web-server)
 ## Background
 This is the backend analogue of my [Frontend Intro](https://github.com/fasiha/frontend-intro#readme). Perhaps more than a lot of ecosystems, Node.js has a lot of cultural practices that I try to point out to others as I pair-program with them. So in this document I hope to fill in the gaps that tutorials, documentation, and Stack Overflow might leave. This may mean this document is very dense—I welcome your [feedback](https://fasiha.github.io/#contact).
@@ -125,11 +126,11 @@ Characters in README.md: 8510
 > N.B.2. A curious exception to the rule is [`better-sqlite3`](https://github.com/JoshuaWise/better-sqlite3#why-should-i-use-this-instead-of-node-sqlite3) which presents a *synchronous* SQLite API that greatly outperforms the standard async SQLite library. This seems to be a lone case in the Node ecosystem where sync is preferable to async, as far as I know, and happens because SQLite queries are CPU-bound or serialized—with no benefit to the async paradigm and apparently (given benchmarks) significant cost.
 
 ## Callbacks are pretty awful: Promises and async/await
-Callbacks used to be the only way to do async in JavaScript (and therefore Node). They are pretty awful because of callback hell, however since Node's API was finalized before we had anything better, `fs.readFile` requires a callback.
+Callbacks used to be the only way to do async in JavaScript (and therefore Node). They are not very ergonomic, and lead to a phenomenon called "callback hell". Nonetheless, since Node's API was finalized before we had anything better, `fs.readFile` requires a callback.
 
-ES2015 (also known as ES6) introduced the Promises API ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises), always an invaluable resource, has a good overview), and ES2017 introduced `async`/`await`. While `async`/`await`, which are very similar to Go's goroutines or C#'s Task API.
+ES2015 (also known as ES6) introduced the Promises API ([MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises), always an invaluable resource, has a good overview), and ES2017 introduced `async`/`await`. `async`/`await` are very similar to Go's goroutines or C#'s Task API.
 
-The relationship between Promises and `async`/`await` is something I'd like to highlight: by itself the Promises API is only somewhat of an improvement over callback hell. The language support for `async`/`await` syntax was a major improvement, but this syntax wraps the Promise API, and therefore, you'll probably still become familiar with some parts of the Promise API but not others.
+The relationship between Promises and `async`/`await` is something I'd like to highlight: by itself the Promises API is only somewhat of an improvement over callback hell; in contrast, the language support for `async`/`await` syntax was a major improvement—but this syntax *wraps* the Promise API, and therefore, you'll probably still become familiar with at least some parts of the Promise API.
 
 Let's rewrite the example above to use `async`/`await`: you can invoke this by running `node filePromises.js`.
 
@@ -152,7 +153,7 @@ async function main () {
 main();
 ```
 
-We import the `fs/promises` module, whose functions return Promises. You can `await` a Promise, meaning that Node will pause execution of this function until the `await` is satisfied by its Promise getting resolved, before continuing with the rest of the function. While the Promise is unresolved, the function is suspended and Node can be busy running other functions (e.g., kicked off by concurrent requests to a web server). Node remains highly scalable, and we don't have callbacks.
+We import the `fs/promises` module, whose functions return Promises. You can `await` a Promise: Node will pause execution of this function until the `await` is satisfied by its Promise getting resolved, before continuing with the rest of the function. While the Promise is unresolved, the function is suspended and Node can be busy running other functions (e.g., kicked off by concurrent requests to a web server). Thanks to `async`/`await`, Node remains highly scalable, we don't have callbacks, and the ordering of our lines of code mirrors the execution.
 
 In order to use `await` inside a function, we have to define the function as `async`. This means that, if you have some code that's fully synchronous, and deep inside one of the functions you decide to change something to be async, then it's possible that every caller of that function will have to become `async` as well. This is captured by a famous blog post, ["What Color is Your Function?"](http://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) by Bob Nystrom.
 
@@ -192,6 +193,7 @@ The only times you need to create a Promise is to wrap an API that predates Prom
 ```js
 function myPromise(x) {
   return new Promise((resolve, reject) => {
+    // doSomething is an old callbacks-only function that takes some data and a callback
     doSomething(x, (err, result) => {
       if (err) {
         reject(err);
@@ -204,15 +206,15 @@ function myPromise(x) {
 ```
 The above might be very hard to read if you're not used to JavaScript lambdas. To make sure you squeeze all the juice from this example, note the following:
 
-Our `myPromise` function returns a Promise: `return new Promise(…)`. That means, in an `async` function, we can `await myPromise(x)`!
+Our `myPromise` function returns a Promise: `return new Promise(…)`. That means, in an `async` caller function, we can `await myPromise(x)`!
 
-Now. Per the Promise [docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/Promise), the Promise constructor takes *a single argument*: `new Promise(executor)`. That single argument to the constructor is a function of two parameters, which the JavaScript runtime gives you:
+Now. Per the Promise [docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/Promise), the Promise constructor takes *a single argument*: `new Promise(executor)`. That single argument to the constructor is a *function* of two parameters, which the JavaScript runtime gives you:
 1. the resolver function, conventionally called `resolve`, and
 2. the rejection function, conventionally called `reject`.
 
-Therefore, inside the body of the executor, you do whatever you need to do—in our case, call a callback-style function. But once we have the final value we want the Promise to resolve to, we invoke the resolver function with that value: above, `resolve(result)`. This is how we tell JavaScript that we're done whatever asynchronous thing we needed to do and the Promise can be resolved, and to resume executing any function that was paused by `await myPromise(x)`.
+Therefore, inside the body of the executor, you do whatever you need to do—in our case, call a callback-style function. But once we have the final value we want the Promise to resolve to, we invoke the *resolver* function with that value: above, `resolve(result)`. This is how we tell JavaScript that we're done whatever asynchronous thing we needed to do and the Promise can be resolved, and to resume executing any function that was paused by `await myPromise(x)`.
 
-And since all functions can break, we can tell JavaScript that something went wrong by, instead of calling the resolver, by calling the rejection function with an object that can be `caught` by an `async` function.
+And since all functions can break, we can tell JavaScript that something went wrong by, instead of calling the resolver, by calling the *rejection function* with an object that can be `caught` by an `async` function.
 
 > I often use the following little snippet in scripts (via [Stack Overflow](https://stackoverflow.com/a/39914235/)): `var sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))`. Inside an `async` function, I can just `await sleep(1000)` to pause execution for 1000 milliseconds.
 
@@ -229,5 +231,7 @@ We've spent a lot of time so far talking about async because that's such a core 
 ## Modules and require
 
 ## let and const
+
+## npm and npx
 
 ## The Express.js web server
